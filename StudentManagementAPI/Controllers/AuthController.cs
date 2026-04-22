@@ -1,11 +1,6 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
-using StudentManagementAPI.Data;
+﻿using Microsoft.AspNetCore.Mvc;
 using StudentManagementAPI.Model;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using StudentManagementAPI.Services;
 
 namespace StudentManagementAPI.Controllers
 {
@@ -13,34 +8,22 @@ namespace StudentManagementAPI.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IAuthService _service;
 
-        public AuthController(AppDbContext context)
+        public AuthController(IAuthService service)
         {
-            _context = context;
+            _service = service;
         }
 
         [HttpPost("login")]
-        public IActionResult Login(LoginModel model)
+        public IActionResult Login([FromBody] LoginModel model)
         {
-            var user = _context.Users
-                .FirstOrDefault(x => x.Username == model.Username && x.Password == model.Password);
+            var token = _service.Login(model.Username, model.Password);
 
-            if (user == null)
-                return Unauthorized();
+            if (token == null)
+                return Unauthorized("Invalid username or password");
 
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes("YourSecretKey123");
-
-            var token = new JwtSecurityToken(
-                claims: new[] { new Claim("id", user.Id.ToString()) },
-                expires: DateTime.UtcNow.AddHours(1),
-                signingCredentials: new SigningCredentials(
-                    new SymmetricSecurityKey(key),
-                    SecurityAlgorithms.HmacSha256Signature)
-            );
-
-            return Ok(new { token = tokenHandler.WriteToken(token) });
+            return Ok(new { token });
         }
     }
 }
